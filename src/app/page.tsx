@@ -1,65 +1,170 @@
-import Image from "next/image";
+"use client";
+
+import { useDeliveryStore } from "@/lib/store";
+import { Item } from "@/types";
+import { ItemCard } from "@/components/ItemCard";
+import { useEffect, useState } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useRouter } from "next/navigation";
+import { slideUp } from "@/components/ui/animation-wrappers";
+import { Hero } from "@/components/layout/Hero";
+import { StaggerList, FadeIn, ScaleHover } from "@/components/ui/animation-wrappers";
+import { motion } from "framer-motion";
+import { toast } from "sonner";
+import confetti from "canvas-confetti";
+import { IndianRupee } from "lucide-react"; // Imported icon
 
 export default function Home() {
+  // Add a small client-side hydration fix
+  const { items, locations, createOrder } = useDeliveryStore();
+  const [mounted, setMounted] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [dropLocationId, setDropLocationId] = useState<string>("");
+  const [quantity, setQuantity] = useState<number>(1);
+  const router = useRouter();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const handleRequest = (item: Item) => {
+    setSelectedItem(item);
+    setDropLocationId("");
+    setQuantity(1); // Reset quantity
+  };
+
+  const confirmRequest = () => {
+    if (selectedItem && dropLocationId) {
+      createOrder(selectedItem.id, dropLocationId, quantity);
+
+      // Animations
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#8b5cf6', '#d946ef', '#06b6d4']
+      });
+
+      toast.success(`Order placed for ${selectedItem.name}!`, {
+        description: "Checking for nearby partners...",
+        duration: 4000,
+      });
+
+      setSelectedItem(null);
+      setTimeout(() => router.push("/orders"), 1500); // Small delay to see confetti
+    }
+  };
+
+  if (!mounted) return <div className="p-8 text-center animate-pulse">Loading amazing things...</div>;
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <div>
+      <Hero />
+
+      <div id="items-grid" className="container py-8 px-4">
+        <div className="mb-8 text-center md:text-left">
+          <h2 className="text-3xl font-bold tracking-tight mb-2">Campus Items</h2>
+          <p className="text-muted-foreground">
+            Browse items available for immediate delivery to your location.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+
+        <StaggerList className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {items.map((item) => {
+            const loc = locations.find(l => l.id === item.pickupLocationId);
+            return (
+              <motion.div variants={slideUp} key={item.id}>
+                <ScaleHover className="h-full">
+                  <ItemCard item={item} locationName={loc?.name} onRequest={handleRequest} />
+                </ScaleHover>
+              </motion.div>
+            );
+          })}
+        </StaggerList>
+
+        <Dialog open={!!selectedItem} onOpenChange={(open) => !open && setSelectedItem(null)}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Request Delivery</DialogTitle>
+              <DialogDescription>
+                Where should we deliver your <strong>{selectedItem?.name}</strong>?
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="location" className="text-right">
+                  Drop Location
+                </Label>
+                <div className="col-span-3">
+                  <Select value={dropLocationId} onValueChange={setDropLocationId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select location" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locations.map((loc) => (
+                        <SelectItem key={loc.id} value={loc.id}>
+                          {loc.name} <span className="text-xs text-muted-foreground">({loc.type})</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="quantity" className="text-right">
+                  Quantity
+                </Label>
+                <div className="col-span-3">
+                  <Select
+                    value={quantity.toString()}
+                    onValueChange={(v) => setQuantity(parseInt(v))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select quantity" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 10 }, (_, i) => i + 1).map((num) => (
+                        <SelectItem key={num} value={num.toString()}>
+                          {num}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {selectedItem && (
+                <div className="flex justify-between items-center pt-2 border-t mt-2">
+                  <span className="font-semibold text-lg">Total</span>
+                  <span className="font-bold text-xl text-green-600 flex items-center">
+                    <IndianRupee className="h-4 w-4 mr-1" />
+                    {((selectedItem.price || 0) * quantity).toLocaleString('en-IN')}
+                  </span>
+                </div>
+              )}
+
+              {selectedItem?.fragile && (
+                <div className="bg-orange-50 text-orange-800 p-3 rounded-md text-sm flex items-center gap-2 border border-orange-200">
+                  <span>⚠️ This item is <strong>Fragile</strong>. We will assign a certified handler.</span>
+                </div>
+              )}
+              {selectedItem && selectedItem.weightKg > 2.0 && (
+                <div className="bg-blue-50 text-blue-800 p-3 rounded-md text-sm flex items-center gap-2 border border-blue-200">
+                  <span>⚖️ Heavy Item ({selectedItem.weightKg}kg). Checking partner capacity...</span>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button type="submit" onClick={confirmRequest} disabled={!dropLocationId} className="w-full sm:w-auto">
+                Confirm Order
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   );
 }
