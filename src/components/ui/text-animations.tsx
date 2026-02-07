@@ -22,7 +22,7 @@ export function DroppingText({ text, className = "", delay = 0 }: { text: string
             opacity: 1,
             y: 0,
             transition: {
-                type: "spring",
+                type: "spring" as const,
                 damping: 12,
                 stiffness: 100
             }
@@ -31,7 +31,7 @@ export function DroppingText({ text, className = "", delay = 0 }: { text: string
             opacity: 0,
             y: -20,
             transition: {
-                type: "spring",
+                type: "spring" as const,
                 damping: 12,
                 stiffness: 100
             }
@@ -131,7 +131,7 @@ function MagneticChar({ children }: { children: React.ReactNode }) {
             opacity: 1,
             y: 0,
             transition: {
-                type: "spring",
+                type: "spring" as const,
                 damping: 12,
                 stiffness: 100
             }
